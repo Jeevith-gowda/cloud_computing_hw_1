@@ -1,106 +1,86 @@
-# Hadoop MapReduce WordCount Project
+# Assignment #1: Docker Containers
 
 ## 📌 Project Overview
-This project demonstrates the **Hadoop MapReduce WordCount** program.  
-The purpose is to read an input text file, process it using a Mapper and Reducer, and produce the frequency of each word as output.  
-This assignment also teaches how to set up a Hadoop environment using **Docker**, build a Java project with **Maven**, and interact with **HDFS**.
+The purpose of this assignment is to build and run a simple two-container stack using
+Docker and Docker Compose. One container will run a PostgreSQL database, while the other
+will host a lightweight Python application. The Python app will connect to the database,
+query a few rows, compute basic statistics, and then print and save the results.
 
 ---
 
-## ⚙️ Approach and Implementation
+## What the Stack Does
 
-### Mapper Logic
-The Mapper reads each line of the input file, splits it into words, and emits each word as a key with a value of `1`.  
-Words with fewer than 3 characters are ignored.  
+This project sets up a two-container stack using Docker Compose. One container runs a PostgreSQL database preloaded with trip data, while the other container runs a Python application that connects to the database, queries the data, computes simple statistics, and writes the results to a JSON file. The project demonstrates multi-container orchestration, environment variable configuration, and reproducible workflows.  
 
-**Example:**
-Input: "hello world"
-Mapper Output: (hello, 1), (world, 1)
 
-### Reducer Logic
-The Reducer sums all the values for the same word key to compute the total count.  
+## Commands to Run / Stop
+### Build and start the stack:
+```bash
+docker compose up --build
+```
+###  Stop and remove containers, networks, and volumes:
 
-**Example:**
-Input: (hello, [1, 1])
-Reducer Output: (hello, 2)
+```bash
+docker compose down -v
+```
 
+
+### Using the provided Makefile:
+```bash
+make        # cleans, builds, and runs everything
+make down   # stops and removes containers
+```
 
 ---
 
-## 🚀 Execution Steps
+## Example Output
 
-### Build the Project
+### Stdout (printed by app):
 ```bash
-cd "C:\Users\jeevi\L5 hands on\H3_itcs6190_Hadoop_MapReduce_Wordcount"
-mvn clean package
-```
-
-### Start Hadoop Cluster with Docker
-```bash
-docker compose up -d
-```
-
-### Copy Files to Docker Container
-```bash
-docker cp target/WordCountUsingHadoop-0.0.1-SNAPSHOT.jar resourcemanager:/opt/hadoop-3.2.1/share/hadoop/mapreduce/
-docker cp shared-folder/input/data/input.txt resourcemanager:/opt/hadoop-3.2.1/share/hadoop/mapreduce/
-
-```
-
-### Connect to Hadoop Container
-```bash
-docker exec -it resourcemanager /bin/bash
-cd /opt/hadoop-3.2.1/share/hadoop/mapreduce/
+{
+  "total_trips": 6,
+  "avg_fare_by_city": [
+    {"city": "Charlotte", "avg_fare": 16.25},
+    {"city": "New York", "avg_fare": 19.0},
+    {"city": "San Francisco", "avg_fare": 20.25}
+  ],
+  "top_by_minutes": [
+    {"city": "San Francisco", "minutes": 28, "fare": 29.3},
+    {"city": "New York", "minutes": 26, "fare": 27.1},
+    {"city": "Charlotte", "minutes": 21, "fare": 20.0},
+    {"city": "Charlotte", "minutes": 12, "fare": 12.5},
+    {"city": "San Francisco", "minutes": 11, "fare": 11.2},
+    {"city": "New York", "minutes": 9, "fare": 10.9}
+  ]
+}
 
 ```
 
-### Set Up HDFS and Upload Dataset
+## Output Location
+
+### Results are written to:
 ```bash
-hadoop fs -mkdir -p /input/data
-hadoop fs -put ./input.txt /input/data
+out/summary.json
 ```
 
-### Run WordCount MapReduce Job
+### Example file content:
 ```bash
-hadoop jar WordCountUsingHadoop-0.0.1-SNAPSHOT.jar com.example.controller.Controller /input/data/input.txt /output1
+{
+  "total_trips": 6,
+  "avg_fare_by_city": [...],
+  "top_by_minutes": [...]
+}
+```
+## Troubleshooting
+
+Database not ready:
+If the Python app starts before Postgres is fully initialized, you may see connection errors. Run again, or ensure the health check in compose.yml is properly configured.
+
+Permission issues on out/ directory:
+Make sure the out/ folder exists locally and has the right permissions. You can reset it with:
+```bash
+rm -rf out && mkdir -p out
 ```
 
-### View Output
-```bash
-hadoop fs -cat /output1/*
-```
-### Copy Output from HDFS to Local
-```bash
-hdfs dfs -get /output1 /opt/hadoop-3.2.1/share/hadoop/mapreduce/
-docker cp resourcemanager:/opt/hadoop-3.2.1/share/hadoop/mapreduce/output1/ shared-folder/output/
-```
-
-### Input
-```bash
-hello world
-how are you doing
-good morning
-have a good day
-good evening
-how was your day
-```
-### Output
-```bash
-good    3
-how     2
-your    2
-day     2
-world   1
-own     1
-was     1
-hello   1
-Create  1
-morning 1
-dataset 1
-are     1
-evening 1
-have    1
-input   1
-doing   1
-you     1
-
+Port 5432 already in use:
+Stop any local Postgres service running on your machine, or change the port mapping in compose.yml.
